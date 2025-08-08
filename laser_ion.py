@@ -10,7 +10,7 @@ sigma = 1.0  # Ширина импульса
 
 # Временная зависимость
 def H1_coeff(t, args):
-    return A0 * np.exp(-(t - t0)**2 / (2 * sigma**2))
+    return A0
 
 # Стационарная часть гамильтониана
 H0 = (Delta / 2) * sigmaz()
