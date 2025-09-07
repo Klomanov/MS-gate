@@ -3,15 +3,16 @@ import matplotlib.pyplot as plt
 from qutip import *
 
 # Параметры системы
-omega_0 = 1.11 * 2 * np.pi  # Частота перехода между уровнями иона
-nu = 0.1 * 2 * np.pi  # Частота колебательной моды (ЦМ)
+omega_0 = 40 * 2 * np.pi  # Частота перехода между уровнями иона
+omega_t = 0.1 * 2 * np.pi  # Частота колебательной моды (ЦМ)
 eta = 0.1  # Параметр Ламба-Дике
-omega = 1 * 2 * np.pi # Частота лазера
-mu = omega_0 - omega  # Расстройка (лазер настроен на красную боковую полосу)
-delta = mu - nu
+delta_t = 0.01 * 2 * np.pi # Отстройка от боковых полос
+omega_l1 = omega_0 + omega_t + delta_t  # Частота лазера 1
+omega_l2 = omega_0 - omega_t - delta_t  # Частота лазера 2
+
 
 # Время моделирования
-t_max = 4*np.pi/delta
+t_max = 4*np.pi/delta_t
 times = np.linspace(0, t_max, 1500)
 
 Omega = 2*np.pi/eta/t_max  # Раби-частота
@@ -27,23 +28,22 @@ sigma_p1 = tensor(sigmap(), qeye(2), qeye(N))
 sigma_p2 = tensor(qeye(2), sigmap(), qeye(N))
 sigma_m1 = tensor(sigmam(), qeye(2), qeye(N))
 sigma_m2 = tensor(qeye(2), sigmam(), qeye(N))
+sigma_y1 = tensor(sigmay(), qeye(2), qeye(N))
+sigma_y2 = tensor(qeye(2), sigmay(), qeye(N))
+
+sigma_x1 = tensor(sigmax(), qeye(2), qeye(N))
+sigma_x2 = tensor(qeye(2), sigmax(), qeye(N))
 
 # Операторы колебательной моды
 a = tensor(qeye(2), qeye(2), destroy(N))
 a_dag = tensor(qeye(2), qeye(2), create(N))
 
 
-# Гамильтониан
+# Гамильтониан противонаправленных пучков в представлении взаимодействия
 def H(t):
-    H0 = (0.5 * omega_0 * (sigma_z1 + sigma_z2) +
-          nu * (a_dag * a + 0.5 * tensor(qzero(2), qzero(2), qeye(N))))
-    return H0 + 0.5 * Omega * (
-            sigma_p1 * (1 + 1j * eta * (a + a.dag())) * np.exp(-1j * omega * t) +
-            sigma_p2 * (1 + 1j * eta * (a + a.dag())) * np.exp(-1j * omega * t) +
-            # Эрмитово сопряжение (h.c.) для первого и второго ионов:
-            sigma_m1 * (1 - 1j * eta * (a + a.dag())) * np.exp(1j * omega * t) +
-            sigma_m2 * (1 - 1j * eta * (a + a.dag())) * np.exp(1j * omega * t)
-    )
+    # H0 = (0.5 * omega_0 * (sigma_z1 + sigma_z2) +
+    #       omega_t * (a_dag * a + 0.5 * tensor(qeye(2), qeye(2), qeye(N))))
+    return 0.5*eta*Omega*(sigma_y1 + sigma_y2) * (a*np.exp(1j*delta_t*t) + a.dag()*np.exp(-1j*delta_t*t))
 
 
 # Начальное состояние: оба иона в основном состоянии, 0 фононов

@@ -1,16 +1,16 @@
 import numpy as np
-import qutip
-from qutip import sigmax, sigmaz, basis, sesolve
+from qutip import *
 
 # Параметры
-Delta = 1.0  # Расстройка
-A0 = 2.0     # Амплитуда импульса
+Delta = 100000.0  # Расстройка
+A0 = 3.0     # Амплитуда импульса
 t0 = 5.0     # Центр импульса
 sigma = 1.0  # Ширина импульса
+w = 100000.0
 
 # Временная зависимость
 def H1_coeff(t, args):
-    return A0
+    return A0*np.cos(w*t)
 
 # Стационарная часть гамильтониана
 H0 = (Delta / 2) * sigmaz()
@@ -25,7 +25,7 @@ H = [H0, [H1, H1_coeff]]
 psi0 = basis(2, 0)
 
 # Временные точки для расчета
-tlist = np.linspace(0, 10, 100)
+tlist = np.linspace(0, 10, 1000)
 
 # Решение уравнения Шрёдингера
 result = sesolve(H, psi0, tlist, e_ops=[sigmaz()], options=qutip.Options(store_states=True))
