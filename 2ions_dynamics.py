@@ -3,10 +3,10 @@ import matplotlib.pyplot as plt
 from qutip import *
 
 # Параметры системы
-omega_0 = 40 * 2 * np.pi  # Частота перехода между уровнями иона
-omega_t = 0.1 * 2 * np.pi  # Частота колебательной моды (ЦМ)
+omega_0 = 100 * 2 * np.pi  # Частота перехода между уровнями иона
+omega_t = 10 * 2 * np.pi  # Частота колебательной моды (ЦМ)
 eta = 0.1  # Параметр Ламба-Дике
-delta_t = 0.01 * 2 * np.pi # Отстройка от боковых полос
+delta_t = 0.1 * 2 * np.pi # Отстройка от боковых полос
 omega_l1 = omega_0 + omega_t + delta_t  # Частота лазера 1
 omega_l2 = omega_0 - omega_t - delta_t  # Частота лазера 2
 
@@ -39,12 +39,16 @@ a = tensor(qeye(2), qeye(2), destroy(N))
 a_dag = tensor(qeye(2), qeye(2), create(N))
 
 
-# Гамильтониан противонаправленных пучков в представлении взаимодействия
 def H(t):
     # H0 = (0.5 * omega_0 * (sigma_z1 + sigma_z2) +
     #       omega_t * (a_dag * a + 0.5 * tensor(qeye(2), qeye(2), qeye(N))))
-    return 0.5*eta*Omega*(sigma_y1 + sigma_y2) * (a*np.exp(1j*delta_t*t) + a.dag()*np.exp(-1j*delta_t*t))
+    # Counter-propagating lasers (Int picture)
+    return 0.5*Omega*(np.exp(1j*(omega_t+delta_t)*t) * (1 + 1j*eta*(a*np.exp(-1j*omega_t*t) + a.dag()*np.exp(1j*omega_t*t)))+
+                      np.exp(-1j*(omega_t+delta_t)*t) * (1 - 1j*eta*(a*np.exp(-1j*omega_t*t) + a.dag()*np.exp(1j*omega_t*t))))*(sigma_x1+sigma_x2)
 
+    # Co-propagating lasers (Int picture)
+    # return Omega*np.cos((omega_t+delta_t)*t)*((sigma_p1+sigma_p2)*(1-1j*eta*(a*np.exp(-1j*omega_t*t) + a.dag()*np.exp(1j*omega_t*t))) +
+    #                                           (sigma_m1+sigma_m2)*(1+1j*eta*(a*np.exp(-1j*omega_t*t) + a.dag()*np.exp(1j*omega_t*t))))
 
 # Начальное состояние: оба иона в основном состоянии, 0 фононов
 psi0 = tensor(basis(2, 0), basis(2, 0), basis(N, 0))
@@ -69,6 +73,8 @@ for i in result.states:
 
 phonons = expect(a_dag * a, result.states)
 
+
+print("Fidelity:", fidelity(result.states[len(result.states)//2], (state00 - 1j*state11)/np.sqrt(2)))
 # Визуализация
 plt.figure(figsize=(10, 6))
 plt.plot(times, pop11, label="11")
