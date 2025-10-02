@@ -43,7 +43,7 @@ class GatePulseSolver:
         def integrand(t):
             return self.f_im0(t, i, m, params)
 
-        t_eval = np.linspace(t1, t2, 2000)  # Плотная сетка
+        t_eval = np.linspace(t1, t2, 800)  # Плотная сетка
         integrand_values = [integrand(t) for t in t_eval]
 
         result = simpson(y=integrand_values, x=t_eval)
@@ -60,11 +60,11 @@ class GatePulseSolver:
                 total += alpha_val_im * f_conj_jm
             return total
 
-        t_eval = np.linspace(t1, t2, 2000)  # Плотная сетка
+        t_eval = np.linspace(t1, t2, 800)  # Плотная сетка
         integrand_values = [integrand(t) for t in t_eval]
 
         result = simpson(y=integrand_values, x=t_eval)
-        #result, error = quad(lambda t: integrand(t).real, t1, t2)
+        # result, error = quad(lambda t: integrand(t).real, t1, t2)
         return 2 * result.real
 
     def equations(self, params, target_phi=np.pi / 2):
@@ -74,7 +74,6 @@ class GatePulseSolver:
         Returns:
         residuals: вектор невязок [α_conditions, χ_condition]
         """
-
 
         residuals = []
 
@@ -151,24 +150,4 @@ if __name__ == "__main__":
     solver = GatePulseSolver(t_max=c.t_max, n_params=c.n_params, m=c.m, q=c.q, eta=c.eta,
                              omega_t=c.omega_t, mu=c.mu, psi=c.psi)
 
-    # Целевой поворот для MS-гейта
-    target_phi = np.pi / 2  # 90 градусов
-
-    # Начальное предположение для параметров
-    initial_guess = np.array([2 * np.pi / c.eta[0, 0] / c.t_max]+[0 for i in range(c.n_params-1)])
-
-    # Решаем систему уравнений
-    solution = solver.solve(target_phi=target_phi, initial_guess=initial_guess)
-
-    if solution is not None:
-        # Проверяем решение
-        solver.verify_solution(solution, target_phi)
-
-        # Дополнительная информация
-        print(f"\nПараметры решения: {solution}")
-
-        # Проверяем энергию импульса
-        t_values = np.linspace(0, solver.t_max, 1000)
-        omega_values = [shape_param.calc(t, solution) for t in t_values]
-        # Строим график импульса
-        solver.plot_pulse(solution)
+    solver.verify_solution([2 * np.pi / c.eta[0, 0] / c.t_max, 0, 0, 0, 0], np.pi / 2)
