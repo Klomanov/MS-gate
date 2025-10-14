@@ -1,7 +1,6 @@
-import random
 import numpy as np
 from scipy.optimize import root
-from scipy.integrate import simpson, quad
+from scipy.integrate import simpson
 import matplotlib.pyplot as plt
 from constants import Constants as c
 import shape_param
