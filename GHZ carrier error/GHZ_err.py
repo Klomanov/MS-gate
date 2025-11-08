@@ -28,8 +28,8 @@ class GHZPolyCarrierErrorHandler:
         self.poly_mods = poly_modes
 
         self.ion_chain = IonChain(nu_rad=nu_rad, nu_ax=nu_ax, n_ions=n_ions, ion_type='Ca40')
-        self.omegas = self.ion_chain.omegas_ax
-        self.eta = self.ion_chain.eta_ax(0)
+        self.omegas = self.ion_chain.omegas_ax[:2]
+        self.eta = self.ion_chain.eta_ax(0)[:, :2]
 
         # Omega0 = gamma * np.pi / (self.eta[0, 0] * t_gate)
         # Omega1 = 0.29 * Omega0
@@ -136,7 +136,7 @@ class GHZPolyCarrierErrorHandler:
         # chi_matrix = handler.chi_fin_num_w_carrier
 
         infidelity = np.sum(np.abs(alpha) ** 2) + np.sum(np.tril(np.abs(chi_matrix) - np.pi / 4, k=-1) ** 2)
-
+        print(f"{infidelity:.2e}", params)
         return infidelity
 
 
@@ -145,12 +145,12 @@ data = np.load('short_ghz_optimal_pulse_params_eta_0_05.npz')
 
 nu_rad = 1.776e6
 nu_ax = 0.469e6
-t_gate_arr = data['nu_t_gate_arr']/nu_ax
+t_gate_arr = data['nu_t_gate_arr'] / nu_ax
 t_gate_arr = t_gate_arr[::5]
 beta_arr = data['beta_arr'][::5]
 gamma_arr = data['gamma_arr'][::5]
 
-sm_deg = 1/3
+sm_deg = 1 / 3
 
 inf_arr = np.zeros(len(t_gate_arr))
 one_tone_inf_arr = np.zeros(len(t_gate_arr))
@@ -165,36 +165,66 @@ gamma1_arr = np.zeros(len(t_gate_arr))
 beta0_arr = np.zeros(len(t_gate_arr))
 beta1_arr = np.zeros(len(t_gate_arr))
 
-t_gate = t_gate_arr[6]
 
-handler = GHZPolyCarrierErrorHandler(t_gate, sm_deg, nu_rad, nu_ax, n_ions, 2)
-Omega0 = gamma_arr[6] * np.pi / (handler.eta[0, 0] * t_gate)
-Omega1 = 0.3*Omega0
-delta = 2*np.pi*beta_arr[6]/t_gate
-mu0 = 2 * np.pi * nu_ax + delta
-mu1 = handler.omegas[1] + delta
+def main1():
+    t_gate = t_gate_arr[6]
 
-resolution = 20
-Omega0_arr = np.linspace(0.8 * Omega0, 1.2 * Omega0, resolution)
-Omega1_arr = np.linspace(0 * Omega1, 1.2 * Omega1, resolution)
-mesh_infidelity = np.zeros((resolution, resolution))
+    handler = GHZPolyCarrierErrorHandler(t_gate, sm_deg, nu_rad, nu_ax, n_ions, 2)
+    Omega0 = gamma_arr[6] * np.pi / (handler.eta[0, 0] * t_gate)
+    Omega1 = 0.3 * Omega0
+    delta = 2 * np.pi * beta_arr[6] / t_gate
+    mu0 = 2 * np.pi * nu_ax + delta
+    mu1 = handler.omegas[1] + delta
+
+    beta0_init = (mu0 - handler.omegas[0]) * t_gate/(2 * np.pi)
+    beta1_init = (mu1 - handler.omegas[1]) * t_gate/(2 * np.pi)
+
+    resolution = 10
+    Omega0_arr = np.linspace(0.95 * Omega0, 1.05 * Omega0, resolution)
+    Omega1_arr = np.linspace(0 * Omega1, 1.2 * Omega1, resolution)
+    mesh_infidelity = np.zeros((resolution, resolution))
+
+    min_infid = 1
+    min_i = -1
+    min_j = -1
+    for i, om0 in enumerate(Omega0_arr):
+        print(i + 1)
+        for j, om1 in enumerate(Omega1_arr):
+            mesh_infidelity[i, j] = handler.infidelity([om0, om1, mu0, mu1])
+            if mesh_infidelity[i, j] < min_infid:
+                min_infid = mesh_infidelity[i, j]
+                min_i, min_j = i, j
+
+    Omega0_grid, Omega1_grid = np.meshgrid(Omega0_arr, Omega1_arr, indexing='ij')
+    im = plt.pcolormesh(Omega0_grid, Omega1_grid, np.log10(mesh_infidelity),
+                        shading='auto', cmap='viridis', vmin=-3, vmax=0)
+
+    print("График:", np.min(np.log10(mesh_infidelity)), Omega0_arr[min_i], Omega1_arr[min_j])
+
+    initial_guess = np.array([922063, 209097, mu0, mu1])
+    bounds = np.array([(Omega0 * 0.8, Omega0 * 1.2), (Omega1 * 0, Omega1 * 1.2),
+                       (mu0 * 0.99, mu0 * 1.01), (mu1 * 0.99, mu1 * 1.01)])
+    result = minimize(handler.infidelity, initial_guess)
+
+    beta0 = (result.x[2] - handler.omegas[0]) * t_gate/(2 * np.pi)
+    beta1 = (result.x[3] - handler.omegas[1]) * t_gate/(2 * np.pi)
+
+    print("Оптимизация:", np.log10(result.fun), result.x[0], result.x[1])
+
+    print("Начальные бета: ", beta0_init, beta1_init)
+    print("Конечные бета: ", beta0, beta1)
+    print("Неиспорченные бета: ", beta_arr[6])
+    print(result.x[0]/result.x[1])
+
+    plt.xlabel('$\Omega_0$')
+    plt.ylabel('$\Omega_1$')
+    plt.title(f'log10 inf')
+    plt.colorbar(im, label='log10 inf')
+
+    plt.show()
 
 
-for i, om0 in enumerate(Omega0_arr):
-    print(i+1)
-    for j,  om1 in enumerate(Omega1_arr):
-        mesh_infidelity[i, j] = handler.infidelity([om0, om1, mu0, mu1])
-
-Omega0_grid, Omega1_grid = np.meshgrid(Omega0_arr, Omega1_arr, indexing='ij')
-im = plt.pcolormesh(Omega0_grid, Omega1_grid, np.log10(mesh_infidelity),
-                               shading='auto', cmap='viridis', vmin=-3, vmax=0)
-
-plt.xlabel('$\Omega_0$')
-plt.ylabel('$\Omega_1$')
-plt.title(f'log10 inf')
-plt.colorbar(im, label='log10 inf')
-
-plt.show()
+main1()
 
 # for i, t_gate in enumerate(t_gate_arr):
 #     handler = GHZPolyCarrierErrorHandler(t_gate, sm_deg, nu_rad, nu_ax, n_ions, 2)
@@ -266,5 +296,3 @@ plt.show()
 #
 # plt.grid()
 # plt.show()
-
-
